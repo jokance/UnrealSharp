@@ -7,6 +7,20 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
 
+    <!-- Mobile platform runtime configurations -->
+    <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'android-arm64'">
+        <UseMonoRuntime>true</UseMonoRuntime>
+        <PublishTrimmed>true</PublishTrimmed>
+        <TrimMode>partial</TrimMode>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'ios-arm64'">
+        <UseMonoRuntime>true</UseMonoRuntime>
+        <PublishTrimmed>true</PublishTrimmed>
+        <TrimMode>partial</TrimMode>
+        <MtouchArch>ARM64</MtouchArch>
+    </PropertyGroup>
+
     <ItemGroup>
       <ProjectReference Include="..\UnrealSharp.Binds\UnrealSharp.Binds.csproj" />
       <ProjectReference Include="..\UnrealSharp.Log\UnrealSharp.Log.csproj" />

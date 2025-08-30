@@ -99,6 +99,18 @@ public static class ManagedUnrealSharpEditorCallbacks
                     ["Configuration"] = buildConfigurationString,
                 };
 
+                // Add mobile platform specific properties
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Create("ANDROID")))
+                {
+                    globalProperties["RuntimeIdentifier"] = "android-arm64";
+                    globalProperties["UseMonoRuntime"] = "true";
+                }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Create("IOS")))
+                {
+                    globalProperties["RuntimeIdentifier"] = "ios-arm64";
+                    globalProperties["UseMonoRuntime"] = "true";
+                }
+
                 BuildRequestData buildRequest = new BuildRequestData(
                     new string(solutionPath),
                     globalProperties,
@@ -180,6 +192,13 @@ public static class ManagedUnrealSharpEditorCallbacks
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 startInfo = new ProcessStartInfo("xdg-open", solutionFilePath);
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Create("ANDROID")) ||
+                     RuntimeInformation.IsOSPlatform(OSPlatform.Create("IOS")))
+            {
+                // Mobile platforms don't support opening solutions directly
+                // This would typically be handled by a development environment on the host machine
+                throw new PlatformNotSupportedException("Opening solutions is not supported on mobile platforms. Use development environment on host machine.");
             }
 
             if (startInfo == null)

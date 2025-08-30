@@ -20,6 +20,13 @@ public class UnrealSharpCore : ModuleRules
 		PublicDefinitions.Add("PLUGIN_PATH=" + PluginDirectory.Replace("\\","/"));
 		PublicDefinitions.Add("BUILDING_EDITOR=" + (Target.bBuildEditor ? "1" : "0"));
 		
+		// Mobile platform support
+		if (Target.Platform == UnrealTargetPlatform.Android || Target.Platform == UnrealTargetPlatform.IOS)
+		{
+			PublicDefinitions.Add("MOBILE_PLATFORM=1");
+			PublicDefinitions.Add("USE_MONO_RUNTIME=1");
+		}
+		
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
@@ -50,6 +57,16 @@ public class UnrealSharpCore : ModuleRules
 				"InputCore",
 			}
 			);
+
+		// Add mobile platform specific modules
+		if (Target.Platform == UnrealTargetPlatform.Android)
+		{
+			PrivateDependencyModuleNames.Add("AndroidPermission");
+		}
+		else if (Target.Platform == UnrealTargetPlatform.IOS)
+		{
+			PrivateDependencyModuleNames.Add("IOSRuntimeSettings");
+		}
 
         PublicIncludePaths.AddRange(new string[] { ModuleDirectory });
         PublicDefinitions.Add("ForceAsEngineGlue=1");
@@ -147,6 +164,20 @@ public class UnrealSharpCore : ModuleRules
 		process.StartInfo.ArgumentList.Add($"\"{projectRootDirectory}\"");
 		
 		process.StartInfo.ArgumentList.Add($"-p:PublishDir=\"{_managedBinariesPath}\"");
+		
+		// Add mobile platform specific publish configurations
+		if (Target.Platform == UnrealTargetPlatform.Android)
+		{
+			process.StartInfo.ArgumentList.Add("-r");
+			process.StartInfo.ArgumentList.Add("android-arm64");
+			process.StartInfo.ArgumentList.Add("-p:UseMonoRuntime=true");
+		}
+		else if (Target.Platform == UnrealTargetPlatform.IOS)
+		{
+			process.StartInfo.ArgumentList.Add("-r");
+			process.StartInfo.ArgumentList.Add("ios-arm64");
+			process.StartInfo.ArgumentList.Add("-p:UseMonoRuntime=true");
+		}
 		
 		process.Start();
 		process.WaitForExit();

@@ -27,6 +27,16 @@ public class UnrealSharpDllImportResolver(IntPtr internalHandle)
             return MacOS.dlopen(IntPtr.Zero, MacOS.RTLD_LAZY);
         }
 
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Create("ANDROID")))
+        {
+            return Android.dlopen(IntPtr.Zero, Android.RTLD_LAZY);
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Create("IOS")))
+        {
+            return iOS.dlopen(IntPtr.Zero, iOS.RTLD_LAZY);
+        }
+
         return IntPtr.Zero;
     }
     
@@ -46,5 +56,25 @@ public class UnrealSharpDllImportResolver(IntPtr internalHandle)
 
         [DllImport(SystemLibrary)]
         public static extern IntPtr GetModuleHandle(IntPtr lpModuleName);
+    }
+
+    private static class Android
+    {
+        private const string SystemLibrary = "libdl.so";
+
+        public const int RTLD_LAZY = 1;
+
+        [DllImport(SystemLibrary)]
+        public static extern IntPtr dlopen(IntPtr filename, int flags);
+    }
+
+    private static class iOS
+    {
+        private const string SystemLibrary = "/usr/lib/libSystem.dylib";
+
+        public const int RTLD_LAZY = 1;
+
+        [DllImport(SystemLibrary)]
+        public static extern IntPtr dlopen(IntPtr path, int mode);
     }
 }
