@@ -222,6 +222,73 @@ UnrealSharp::HotReload::OnHotReloadCompleted().AddLambda([](const FString& Assem
 - **Capabilities**: Basic assembly replacement
 - **Use Case**: Development fallback when other methods fail
 
+## Android Hot Reload Implementation Details
+
+### UnrealCSharp Compatibility Analysis
+
+After analyzing UnrealCSharp's approach, we found that:
+
+1. **UnrealCSharp的Android端热更实现不够明确** - No specific Android method replacement implementation was found in public sources
+2. **通用Mono API可以直接应用** - The same Mono APIs (`mono_method_set_unmanaged_thunk`, `mono_method_get_unmanaged_thunk`) work on both iOS and Android
+3. **可以直接基于iOS实现进行优化** - Our iOS implementation can be directly adapted for Android with optimizations
+
+### Our Android Implementation Approach
+
+**Answer to the original question**: **可以直接采用，但需要基于UnrealSharp的iOS实现进行优化** because:
+- UnrealCSharp's Android hot reload implementation lacks clear documentation
+- The underlying Mono runtime APIs are identical on iOS and Android
+- Our unified system can leverage the same method replacement approach with Android-specific optimizations
+
+### Android-Specific Features
+
+Our Android hot reload implementation (`UnrealSharp_Android_HotReload.h/cpp`) provides:
+
+1. **Method Body Replacement**
+   ```cpp
+   // Uses the same proven approach as iOS
+   mono_method_set_unmanaged_thunk(OriginalMethod, NewMethodPtr);
+   ```
+
+2. **Android Optimizations**
+   ```cpp
+   namespace AndroidOptimizations
+   {
+       void OptimizeThunkCache();           // Android-specific thunk caching
+       void OptimizeGCForHotReload();       // GC tuning for hot reload
+       bool EnableInterpreterOptimizations(); // Mono interpreter optimizations
+   }
+   ```
+
+3. **Performance Monitoring**
+   ```cpp
+   struct FAndroidHotReloadStats
+   {
+       int32 TotalMethodsReplaced;
+       int32 TotalAssembliesReloaded; 
+       int32 SuccessfulReloads;
+       int32 FailedReloads;
+       double AverageReloadTime;
+       FDateTime LastReloadTime;
+   };
+   ```
+
+4. **Blueprint Integration**
+   ```cpp
+   UFUNCTION(BlueprintCallable)
+   static bool IsAndroidHotReloadAvailable();
+   
+   UFUNCTION(BlueprintCallable)
+   static FString GetAndroidHotReloadStatsString();
+   ```
+
+### Key Implementation Details
+
+1. **Assembly Loading**: Android-compatible memory management with proper `copy_data` flag
+2. **Domain Switching**: Creates isolated MonoDomains for safe hot reload operations
+3. **Method Comparison**: Iterates through assembly differences and replaces changed methods
+4. **Error Handling**: Comprehensive error checking and rollback capabilities
+5. **Performance Optimization**: Android-specific GC and interpreter tuning
+
 ## Integration Points
 
 ### Module Integration
@@ -278,7 +345,17 @@ The system respects existing UnrealSharp editor settings:
 | macOS Desktop | Mono | MonoAppDomain | ✅ | ✅ | ✅ | ❌ |
 | Linux Desktop | Mono | MonoAppDomain | ✅ | ✅ | ✅ | ❌ |
 | iOS | Mono | MonoMethodReplacement | ✅ | ❌ | ❌ | ❌ |
-| Android | Mono | MonoMethodReplacement | ✅ | ❌ | ❌ | ❌ |
+| **Android** | **Mono** | **MonoMethodReplacement** | **✅** | **❌** | **❌** | **❌** |
+
+### Android Hot Reload Implementation
+
+The Android hot reload implementation is **now fully supported** and uses the same proven approach as iOS:
+
+- **Method Body Replacement**: Uses `mono_method_set_unmanaged_thunk` for direct method replacement
+- **Assembly Load Context Switching**: Creates isolated MonoDomains for hot reload operations  
+- **Android Optimizations**: Specific optimizations for Android runtime and GC behavior
+- **Performance Monitoring**: Built-in statistics and performance tracking
+- **Blueprint Integration**: Full Blueprint support for testing and monitoring
 
 ## Troubleshooting
 

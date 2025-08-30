@@ -16,6 +16,15 @@
 #include "Engine/Engine.h"
 #include "CSManager.h"
 
+// Platform-specific hot reload includes
+#if PLATFORM_IOS
+#include "iOS/UnrealSharp_iOS_RuntimeHotReload.h"
+#endif
+
+#if PLATFORM_ANDROID
+#include "Android/UnrealSharp_Android_HotReload.h"
+#endif
+
 /**
  * UnrealSharp Unified Hot Reload System
  * 
@@ -224,9 +233,10 @@ namespace UnrealSharp::HotReload
         // Use our advanced iOS/Android hot reload system
         #if PLATFORM_IOS
         return UnrealSharp::iOS::RuntimeHotReload::InitializeRuntimeHotReload();
+        #elif PLATFORM_ANDROID
+        return UnrealSharp::Android::HotReload::InitializeAndroidHotReload();
         #else
-        // TODO: Implement Android method replacement hot reload
-        UE_LOG(LogTemp, Warning, TEXT("UnrealSharp: Android method replacement hot reload not yet implemented"));
+        UE_LOG(LogTemp, Warning, TEXT("UnrealSharp: Method replacement hot reload not implemented for this mobile platform"));
         return false;
         #endif
 #else
@@ -410,9 +420,16 @@ namespace UnrealSharp::HotReload
     {
         UE_LOG(LogTemp, Log, TEXT("UnrealSharp: Performing Mono method replacement hot reload for '%s'"), *AssemblyName);
 
-#if WITH_MONO_RUNTIME && PLATFORM_IOS
-        // Use our advanced iOS hot reload system
+#if WITH_MONO_RUNTIME && (PLATFORM_IOS || PLATFORM_ANDROID)
+        // Use our advanced iOS/Android hot reload system
+        #if PLATFORM_IOS
         return UnrealSharp::iOS::RuntimeHotReload::HotReloadAssemblyRuntime(AssemblyName, AssemblyData);
+        #elif PLATFORM_ANDROID
+        return UnrealSharp::Android::HotReload::HotReloadAssemblyAndroid(AssemblyName, AssemblyData);
+        #else
+        UE_LOG(LogTemp, Warning, TEXT("UnrealSharp: Method replacement hot reload not implemented for this mobile platform"));
+        return false;
+        #endif
 #else
         UE_LOG(LogTemp, Warning, TEXT("UnrealSharp: Method replacement hot reload not available on this platform"));
         return false;
@@ -497,6 +514,8 @@ namespace UnrealSharp::HotReload
             case EHotReloadStrategy::MonoMethodReplacement:
 #if WITH_MONO_RUNTIME && PLATFORM_IOS
                 UnrealSharp::iOS::RuntimeHotReload::ShutdownRuntimeHotReload();
+#elif WITH_MONO_RUNTIME && PLATFORM_ANDROID
+                UnrealSharp::Android::HotReload::ShutdownAndroidHotReload();
 #endif
                 break;
             
