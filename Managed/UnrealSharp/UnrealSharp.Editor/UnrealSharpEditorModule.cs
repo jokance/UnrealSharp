@@ -99,7 +99,7 @@ public static class ManagedUnrealSharpEditorCallbacks
                     ["Configuration"] = buildConfigurationString,
                 };
 
-                // Add mobile platform specific properties
+                // Add platform specific properties
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Create("ANDROID")))
                 {
                     globalProperties["RuntimeIdentifier"] = "android-arm64";
@@ -109,6 +109,25 @@ public static class ManagedUnrealSharpEditorCallbacks
                 {
                     globalProperties["RuntimeIdentifier"] = "ios-arm64";
                     globalProperties["UseMonoRuntime"] = "true";
+                }
+                else
+                {
+                    // Desktop platforms - check runtime preference
+                    string useMonoRuntimeValue = GetRuntimePreference() ? "false" : "true";
+                    globalProperties["UseMonoRuntime"] = useMonoRuntimeValue;
+                    
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                    {
+                        globalProperties["RuntimeIdentifier"] = "win-x64";
+                    }
+                    else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                    {
+                        globalProperties["RuntimeIdentifier"] = "osx-x64";
+                    }
+                    else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                    {
+                        globalProperties["RuntimeIdentifier"] = "linux-x64";
+                    }
                 }
 
                 BuildRequestData buildRequest = new BuildRequestData(
@@ -220,6 +239,19 @@ public static class ManagedUnrealSharpEditorCallbacks
         }
 
         return NativeBool.True;
+    }
+    
+    private static bool GetRuntimePreference()
+    {
+        // Check environment variable first
+        string envValue = Environment.GetEnvironmentVariable("UNREAL_SHARP_USE_DOTNET_RUNTIME");
+        if (!string.IsNullOrEmpty(envValue))
+        {
+            return bool.TryParse(envValue, out bool envPreference) && envPreference;
+        }
+
+        // Default to Mono for consistency with UnrealCSharp approach
+        return false;
     }
     
     [UnmanagedCallersOnly]

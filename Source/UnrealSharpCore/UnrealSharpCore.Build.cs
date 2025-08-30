@@ -9,6 +9,11 @@ public class UnrealSharpCore : ModuleRules
 	private readonly string _managedBinariesPath;
 	private readonly string _engineGluePath;
 	
+	// Runtime selection switch - Set to true to use native .NET runtime on desktop platforms
+	// Default: false (use Mono runtime on all platforms for consistency)
+	// Can be overridden by environment variable UNREAL_SHARP_USE_DOTNET_RUNTIME=true
+	private static readonly bool UseDesktopDotNetRuntime = GetRuntimePreference();
+	
 	public UnrealSharpCore(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
@@ -20,11 +25,24 @@ public class UnrealSharpCore : ModuleRules
 		PublicDefinitions.Add("PLUGIN_PATH=" + PluginDirectory.Replace("\\","/"));
 		PublicDefinitions.Add("BUILDING_EDITOR=" + (Target.bBuildEditor ? "1" : "0"));
 		
-		// Mobile platform support
-		if (Target.Platform == UnrealTargetPlatform.Android || Target.Platform == UnrealTargetPlatform.IOS)
+		// Platform-specific runtime configuration
+		bool isMobilePlatform = Target.Platform == UnrealTargetPlatform.Android || Target.Platform == UnrealTargetPlatform.IOS;
+		bool useMonoRuntime = isMobilePlatform || !UseDesktopDotNetRuntime;
+		
+		if (isMobilePlatform)
 		{
 			PublicDefinitions.Add("MOBILE_PLATFORM=1");
+		}
+		
+		if (useMonoRuntime)
+		{
 			PublicDefinitions.Add("USE_MONO_RUNTIME=1");
+			Console.WriteLine($"UnrealSharp: Using Mono runtime for {Target.Platform}");
+		}
+		else
+		{
+			PublicDefinitions.Add("USE_DOTNET_NATIVE_RUNTIME=1");
+			Console.WriteLine($"UnrealSharp: Using .NET 9 native runtime for {Target.Platform}");
 		}
 		
 		PublicDependencyModuleNames.AddRange(
@@ -145,6 +163,22 @@ public class UnrealSharpCore : ModuleRules
 		throw new Exception($"Couldn't find {dotnetExe} in PATH!");
 	}
 
+	private static bool GetRuntimePreference()
+	{
+		// Check environment variable first
+		string envValue = Environment.GetEnvironmentVariable("UNREAL_SHARP_USE_DOTNET_RUNTIME");
+		if (!string.IsNullOrEmpty(envValue))
+		{
+			bool.TryParse(envValue, out bool envPreference);
+			Console.WriteLine($"UnrealSharp: Runtime preference from environment variable: {(envPreference ? ".NET 9" : "Mono")}");
+			return envPreference;
+		}
+
+		// Default to Mono for consistency with UnrealCSharp approach
+		Console.WriteLine("UnrealSharp: Using default runtime preference: Mono (set UNREAL_SHARP_USE_DOTNET_RUNTIME=true to use .NET 9 on desktop)");
+		return false;
+	}
+
 	void PublishSolution(string projectRootDirectory)
 	{
 		if (!Directory.Exists(projectRootDirectory))
@@ -165,18 +199,44 @@ public class UnrealSharpCore : ModuleRules
 		
 		process.StartInfo.ArgumentList.Add($"-p:PublishDir=\"{_managedBinariesPath}\"");
 		
-		// Add mobile platform specific publish configurations
+		// Add platform specific publish configurations
+		bool isMobilePlatform = Target.Platform == UnrealTargetPlatform.Android || Target.Platform == UnrealTargetPlatform.IOS;
+		bool useMonoRuntime = isMobilePlatform || !UseDesktopDotNetRuntime;
+		
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
 			process.StartInfo.ArgumentList.Add("-r");
 			process.StartInfo.ArgumentList.Add("android-arm64");
-			process.StartInfo.ArgumentList.Add("-p:UseMonoRuntime=true");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
 			process.StartInfo.ArgumentList.Add("-r");
 			process.StartInfo.ArgumentList.Add("ios-arm64");
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			process.StartInfo.ArgumentList.Add("-r");
+			process.StartInfo.ArgumentList.Add("win-x64");
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Mac)
+		{
+			process.StartInfo.ArgumentList.Add("-r");
+			process.StartInfo.ArgumentList.Add("osx-x64");
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Linux)
+		{
+			process.StartInfo.ArgumentList.Add("-r");
+			process.StartInfo.ArgumentList.Add("linux-x64");
+		}
+		
+		// Set runtime type
+		if (useMonoRuntime)
+		{
 			process.StartInfo.ArgumentList.Add("-p:UseMonoRuntime=true");
+		}
+		else
+		{
+			process.StartInfo.ArgumentList.Add("-p:UseMonoRuntime=false");
 		}
 		
 		process.Start();
