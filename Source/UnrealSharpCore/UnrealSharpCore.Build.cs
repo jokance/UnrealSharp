@@ -87,6 +87,14 @@ public class UnrealSharpCore : ModuleRules
 			
 			// Add Mono-specific definitions
 			PublicDefinitions.Add("WITH_MONO_RUNTIME=1");
+			
+			// Add iOS-specific hot reload support
+			if (Target.Platform == UnrealTargetPlatform.IOS)
+			{
+				PublicDefinitions.Add("UNREALSHARP_IOS_HOTRELOAD_ENABLED=1");
+				// Add iOS-specific include paths
+				PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "Public", "iOS"));
+			}
 		}
 		else
 		{
