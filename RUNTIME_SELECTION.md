@@ -98,12 +98,30 @@ If experiencing performance issues:
 - Mono: Use traditional debugging tools
 - .NET 9: Leverage modern .NET debugging capabilities
 
+## Mono Runtime Libraries
+
+UnrealSharp now includes complete Mono runtime libraries as a git submodule:
+
+- **Location**: `Source/ThirdParty/Mono/`
+- **Platforms**: All supported platforms (Win64, macOS, Linux, Android, iOS)
+- **Configurations**: Debug and Release builds
+- **Version**: Mono 8.0.5 (.NET 8 compatible)
+
+The Mono libraries are automatically linked when `UseMonoRuntime=true`.
+
 ## Migration from Previous Versions
 
 If you were using the mixed runtime approach from earlier modifications:
 1. The new default is Mono for all platforms
 2. Use the environment variable to opt-in to .NET 9 on desktop
 3. Your mobile builds will automatically use Mono (no change needed)
+4. Mono runtime libraries are now included automatically (no manual installation required)
+
+## Build Requirements
+
+- **Git submodules**: Run `git submodule update --init --recursive` after cloning
+- **Disk space**: Mono libraries require ~500MB of additional space
+- **Build tools**: Standard Unreal Engine build requirements
 
 ---
 

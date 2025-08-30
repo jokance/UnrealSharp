@@ -76,6 +76,23 @@ public class UnrealSharpCore : ModuleRules
 			}
 			);
 
+		// Add Mono runtime support when using Mono
+		if (useMonoRuntime)
+		{
+			PrivateDependencyModuleNames.Add("Mono");
+			
+			// Add Mono include paths
+			string MonoPath = Path.Combine(PluginDirectory, "Source", "ThirdParty", "Mono");
+			PublicIncludePaths.Add(Path.Combine(MonoPath, "src"));
+			
+			// Add Mono-specific definitions
+			PublicDefinitions.Add("WITH_MONO_RUNTIME=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("WITH_MONO_RUNTIME=0");
+		}
+
 		// Add mobile platform specific modules
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
