@@ -12,6 +12,7 @@
 #include "CSManager.h"
 #include "Modules/ModuleManager.h"
 #include "TypeGenerator/Properties/PropertyGeneratorManager.h"
+#include "HotReload/UnrealSharp_UnifiedHotReload.h"
 
 #define LOCTEXT_NAMESPACE "FUnrealSharpCoreModule"
 
@@ -24,10 +25,16 @@ void FUnrealSharpCoreModule::StartupModule()
 	// Initialize the C# runtime
 	UCSManager& CSManager = UCSManager::GetOrCreate();
 	CSManager.Initialize();
+	
+	// Initialize the unified hot reload system
+	UnrealSharp::Platform::InitializeHotReloadSystem();
 }
 
 void FUnrealSharpCoreModule::ShutdownModule()
 {
+	// Shutdown the unified hot reload system
+	UnrealSharp::Platform::ShutdownHotReloadSystem();
+	
 	UCSManager::Shutdown();
 	FPropertyGeneratorManager::Shutdown();
 }
