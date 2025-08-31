@@ -18,6 +18,8 @@
 #include "TypeGenerator/Factories/CSPropertyFactory.h"
 #include "TypeGenerator/Register/CSBuilderManager.h"
 #include "TypeGenerator/Register/TypeInfo/CSClassInfo.h"
+#include "GCOptimizations/CSObjectSafetyValidator.h"
+#include "GCOptimizations/CSObjectManager.h"
 #include "Utils/CSClassUtilities.h"
 
 #ifdef _WIN32
@@ -560,8 +562,11 @@ FGCHandle UCSManager::FindManagedObject(const UObject* Object)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UCSManager::FindManagedObject);
 
-	if (!IsValid(Object))
+	// 使用增强的安全性检查替代简单的IsValid
+	if (!FCSObjectSafetyValidator::IsObjectSafeForManagedAccess(Object))
 	{
+		UE_LOG(LogTemp, VeryVerbose, TEXT("CSManager: Object failed safety check: %s"), 
+			   Object ? *FCSObjectSafetyValidator::GetObjectSafetyDescription(Object) : TEXT("null"));
 		return FGCHandle::Null();
 	}
 

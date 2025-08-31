@@ -13,6 +13,7 @@
 #include "TypeGenerator/Register/MetaData/CSEnumMetaData.h"
 #include "TypeGenerator/Register/MetaData/CSInterfaceMetaData.h"
 #include "TypeGenerator/Register/MetaData/CSStructMetaData.h"
+#include "GCOptimizations/CSObjectManager.h"
 #include "TypeGenerator/Register/TypeInfo/CSClassInfo.h"
 #include "Utils/CSClassUtilities.h"
 
@@ -280,8 +281,15 @@ TSharedPtr<FGCHandle> UCSAssembly::CreateManagedObject(const UObject* Object)
 	TSharedPtr<FGCHandle> TypeHandle = TypeInfo->GetManagedTypeHandle();
 
 	TCHAR* Error = nullptr;
-	FGCHandle NewManagedObject = FCSManagedCallbacks::ManagedCallbacks.CreateNewManagedObject(Object, TypeHandle->GetPointer(), &Error);
-	NewManagedObject.Type = GCHandleType::StrongHandle;
+	// 使用智能对象管理器创建优化的句柄
+	FString ErrorString;
+	FGCHandle NewManagedObject = UCSObjectManager::CreateOptimizedHandle(Object, TypeHandle->GetPointer(), &ErrorString);
+	
+	// 如果字符串错误不为空，转换为TCHAR*以保持兼容性
+	if (!ErrorString.IsEmpty())
+	{
+		Error = *ErrorString;
+	}
 
 	if (NewManagedObject.IsNull())
 	{
