@@ -25,9 +25,13 @@ public class UnrealSharpCore : ModuleRules
 		PublicDefinitions.Add("PLUGIN_PATH=" + PluginDirectory.Replace("\\","/"));
 		PublicDefinitions.Add("BUILDING_EDITOR=" + (Target.bBuildEditor ? "1" : "0"));
 		
-		// Platform-specific runtime configuration
+		// Enhanced cross-platform build system
+		var platformInfo = UnrealSharpCrossPlatformBuild.DetectPlatformCapabilities(Target);
+		var buildConfig = UnrealSharpCrossPlatformBuild.GenerateOptimalBuildConfiguration(Target, platformInfo);
+		
+		// Platform-specific runtime configuration based on enhanced detection
 		bool isMobilePlatform = Target.Platform == UnrealTargetPlatform.Android || Target.Platform == UnrealTargetPlatform.IOS;
-		bool useMonoRuntime = isMobilePlatform || !UseDesktopDotNetRuntime;
+		bool useMonoRuntime = buildConfig.UseMonoRuntime;
 		
 		if (isMobilePlatform)
 		{
