@@ -6,6 +6,10 @@
 #include "iOS/UnrealSharp_iOS_HotReload.h"
 #endif
 
+#if PLATFORM_ANDROID
+#include "Android/UnrealSharp_Android_HotReload.h"
+#endif
+
 /**
  * Platform-specific initialization for UnrealSharp
  * Handles platform-specific setup for hot reload and runtime features
@@ -31,8 +35,13 @@ namespace UnrealSharp::Platform
 #endif
 
 #if PLATFORM_ANDROID
-        // Android-specific initialization would go here
-        UE_LOG(LogTemp, Log, TEXT("UnrealSharp: Android platform initialization"));
+        // Initialize Android hot reload system
+        UNREALSHARP_ANDROID_HOTRELOAD_INIT();
+        
+        // Enable Android-specific optimizations
+        UNREALSHARP_ANDROID_HOTRELOAD_OPTIMIZE();
+        
+        UE_LOG(LogTemp, Log, TEXT("UnrealSharp: Android hot reload system initialized"));
 #endif
 
 #if PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_LINUX
@@ -54,6 +63,12 @@ namespace UnrealSharp::Platform
         UNREALSHARP_IOS_HOTRELOAD_SHUTDOWN();
         UE_LOG(LogTemp, Log, TEXT("UnrealSharp: iOS hot reload system shut down"));
 #endif
+
+#if PLATFORM_ANDROID
+        // Shutdown Android hot reload system
+        UNREALSHARP_ANDROID_HOTRELOAD_SHUTDOWN();
+        UE_LOG(LogTemp, Log, TEXT("UnrealSharp: Android hot reload system shut down"));
+#endif
     }
 
     /**
@@ -66,7 +81,7 @@ namespace UnrealSharp::Platform
 #elif PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_LINUX
         return true; // Full hot reload support on desktop platforms
 #elif PLATFORM_ANDROID
-        return false; // Hot reload not yet implemented for Android
+        return true; // Full hot reload support on Android
 #else
         return false; // Unknown platform
 #endif
@@ -80,7 +95,7 @@ namespace UnrealSharp::Platform
 #if PLATFORM_IOS
         return TEXT("iOS: Limited to game logic assemblies, requires app restart for full reload");
 #elif PLATFORM_ANDROID
-        return TEXT("Android: Hot reload not yet implemented");
+        return TEXT("Android: Full hot reload support with method replacement and domain switching");
 #elif PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_LINUX
         return TEXT("Desktop: Full hot reload support available");
 #else
