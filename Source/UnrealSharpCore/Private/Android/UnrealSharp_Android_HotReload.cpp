@@ -37,20 +37,32 @@ namespace UnrealSharp::Android::HotReload
     static FAndroidHotReloadState AndroidHotReloadState;
 
     /**
-     * Android-specific Mono configuration for hot reload
+     * Android-specific Mono configuration for hot reload using JIT
      */
     void ConfigureMonoForAndroidHotReload()
     {
-        // Enable interpreter mode for better hot reload support
-        mono_jit_set_aot_mode(MONO_AOT_MODE_INTERP_LLVMONLY);
+        // Enable JIT mode for optimal hot reload performance on Android
+        // JIT provides faster execution and better hot reload capabilities than interpreter
+        mono_jit_set_aot_mode(MONO_AOT_MODE_NORMAL);
         
-        // Configure Mono for Android optimizations
+        // Configure Mono for Android JIT optimizations
         mono_config_parse_environment();
         
-        // Enable soft debugger for hot reload
+        // Enable JIT optimizations for Android
+        mono_set_signal_chaining(true);  // Better signal handling for JIT
+        mono_set_crash_chaining(true);   // Improved crash reporting with JIT
+        
+        // Configure JIT compilation options
+        const char* jit_options = "--optimize=all --aot-path=/data/data/com.yourapp/cache/";
+        mono_jit_parse_options(1, (char**)&jit_options);
+        
+        // Enable soft debugger for hot reload with JIT support
         mono_debug_init(MONO_DEBUG_FORMAT_MONO);
         
-        UE_LOG(LogTemp, Log, TEXT("UnrealSharp: Configured Mono for Android hot reload"));
+        // Enable JIT-specific debugging features
+        mono_debug_set_level(MONO_DEBUG_LEVEL_SOURCE);
+        
+        UE_LOG(LogTemp, Log, TEXT("UnrealSharp Android: Configured Mono JIT for hot reload with optimizations"));
     }
 
     /**
@@ -66,15 +78,18 @@ namespace UnrealSharp::Android::HotReload
 
         try
         {
-            // Get the unmanaged thunk for the new method
+            // Force JIT compilation of the new method for optimal performance
+            mono_compile_method(NewMethod);
+            
+            // Get the JIT-compiled method pointer for the new method
             void* NewMethodPtr = mono_method_get_unmanaged_thunk(NewMethod);
             if (!NewMethodPtr)
             {
-                UE_LOG(LogTemp, Error, TEXT("UnrealSharp Android: Failed to get unmanaged thunk for new method"));
+                UE_LOG(LogTemp, Error, TEXT("UnrealSharp Android JIT: Failed to get JIT-compiled method pointer"));
                 return false;
             }
 
-            // Store original method pointer for potential revert
+            // Store original JIT-compiled method pointer for potential revert
             void* OriginalMethodPtr = mono_method_get_unmanaged_thunk(OriginalMethod);
             FString MethodName = FString(mono_method_get_name(OriginalMethod));
             
@@ -84,8 +99,14 @@ namespace UnrealSharp::Android::HotReload
             }
             AndroidHotReloadState.OriginalMethodPointers[MethodName].Add(OriginalMethodPtr);
 
-            // Set the new unmanaged thunk (this is the key Android/iOS compatible operation)
+            // Invalidate JIT cache for the original method to ensure clean replacement
+            mono_method_clear_object(OriginalMethod);
+            
+            // Set the new JIT-compiled method pointer (JIT-optimized hot reload)
             mono_method_set_unmanaged_thunk(OriginalMethod, NewMethodPtr);
+            
+            // Warm up JIT cache for the replaced method
+            mono_compile_method(OriginalMethod);
 
             // Track replaced method
             if (!AndroidHotReloadState.ReplacedMethods.Contains(MethodName))
@@ -222,9 +243,10 @@ namespace UnrealSharp::Android::HotReload
             return false;
         }
 
-        // Initialize Android-specific optimizations
+        // Initialize Android-specific JIT optimizations
         AndroidOptimizations::OptimizeGCForHotReload();
-        AndroidOptimizations::EnableInterpreterOptimizations();
+        AndroidOptimizations::EnableJITOptimizations();
+        AndroidOptimizations::ConfigureJITCodeCache();
 
         AndroidHotReloadState.bIsInitialized = true;
         AndroidHotReloadState.Stats = FAndroidHotReloadStats();
@@ -451,13 +473,37 @@ namespace UnrealSharp::Android::HotReload
             // This prevents premature collection of hot reload related objects
         }
 
-        bool EnableInterpreterOptimizations()
+        bool EnableJITOptimizations()
         {
-            UE_LOG(LogTemp, Log, TEXT("UnrealSharp Android: Enabling interpreter optimizations"));
+            UE_LOG(LogTemp, Log, TEXT("UnrealSharp Android: Enabling JIT optimizations"));
             
-            // Enable Android-specific Mono interpreter optimizations
-            // These help with performance during method replacement operations
+            // Enable Android-specific Mono JIT optimizations
+            // Configure JIT compilation thresholds for hot reload scenarios
+            mono_jit_set_trace_options("method-enter,method-leave");
+            
+            // Set JIT optimization level
+            mono_set_defaults(8, 0); // Higher optimization level
+            
+            // Enable adaptive JIT for better performance
+            const char* jit_env = "MONO_ENV_OPTIONS=--optimize=all,unsafe,inline,loop";
+            putenv((char*)jit_env);
+            
             return true;
+        }
+
+        void ConfigureJITCodeCache()
+        {
+            UE_LOG(LogTemp, Log, TEXT("UnrealSharp Android: Configuring JIT code cache"));
+            
+            // Configure JIT code cache size for Android (16MB for hot reload)
+            mono_set_defaults(8, 16 * 1024 * 1024);
+            
+            // Enable code sharing between domains for better memory usage
+            mono_config_set_server_mode(false); // Client mode for better hot reload performance
+            
+            // Configure JIT cache persistence on Android storage
+            const char* cache_dir = "/data/data/com.unrealengine.UE4/cache/mono_jit/";
+            mono_jit_set_aot_cache_dir(cache_dir);
         }
     }
 }
@@ -498,7 +544,8 @@ bool UAndroidHotReloadBlueprintLibrary::EnableAndroidHotReloadOptimizations()
 {
     UnrealSharp::Android::HotReload::AndroidOptimizations::OptimizeThunkCache();
     UnrealSharp::Android::HotReload::AndroidOptimizations::OptimizeGCForHotReload();
-    return UnrealSharp::Android::HotReload::AndroidOptimizations::EnableInterpreterOptimizations();
+    UnrealSharp::Android::HotReload::AndroidOptimizations::ConfigureJITCodeCache();
+    return UnrealSharp::Android::HotReload::AndroidOptimizations::EnableJITOptimizations();
 }
 
 #endif // WITH_MONO_RUNTIME && PLATFORM_ANDROID
