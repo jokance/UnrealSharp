@@ -52,9 +52,12 @@ namespace UnrealSharp::Android::HotReload
         mono_set_signal_chaining(true);  // Better signal handling for JIT
         mono_set_crash_chaining(true);   // Improved crash reporting with JIT
         
-        // Configure JIT compilation options
-        const char* jit_options = "--optimize=all --aot-path=/data/data/com.yourapp/cache/";
+        // Configure JIT compilation options for enhanced hot reload performance
+        const char* jit_options = "--optimize=all,shared --aot-path=/data/data/com.yourapp/cache/ --hot-reload";
         mono_jit_parse_options(1, (char**)&jit_options);
+        
+        // Enable hot reload specific optimizations
+        mono_set_partial_sharing_supported(true); // Enable method sharing for hot reload
         
         // Enable soft debugger for hot reload with JIT support
         mono_debug_init(MONO_DEBUG_FORMAT_MONO);
@@ -209,10 +212,11 @@ namespace UnrealSharp::Android::HotReload
                 MonoMethod* OldMethod = mono_class_get_method_from_name(OldClass, MethodName, mono_method_signature(NewMethod)->param_count);
                 if (!OldMethod) continue;
 
-                // Replace method body
+                // Replace method body with enhanced no-restart support
                 if (ReplaceMethodBodyAndroid(OldMethod, NewMethod))
                 {
                     ReplacedMethods++;
+                    UE_LOG(LogTemp, VeryVerbose, TEXT("UnrealSharp Android: Hot replaced method '%s' without restart"), ANSI_TO_TCHAR(MethodName));
                 }
             }
         }

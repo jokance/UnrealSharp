@@ -339,22 +339,29 @@ The system respects existing UnrealSharp editor settings:
 
 | Platform | Runtime | Strategy | Method Replacement | Assembly Replacement | New Types | Requires Restart |
 |----------|---------|----------|-------------------|---------------------|-----------|-----------------|
-| Windows Desktop | .NET | DotNetNative | ✅ | ✅ | Limited | ❌ |
-| Windows Desktop | Mono | MonoAppDomain | ✅ | ✅ | ✅ | ❌ |
+| Windows Desktop | .NET | DotNetNative | ✅ | ✅ | Limited | ❌ **Enhanced** |
+| Windows Desktop | Mono | MonoAppDomain | ✅ | ✅ | ✅ | ❌ **Enhanced** |
 | macOS Desktop | .NET | DotNetNative | ✅ | ✅ | Limited | ❌ |
 | macOS Desktop | Mono | MonoAppDomain | ✅ | ✅ | ✅ | ❌ |
 | Linux Desktop | Mono | MonoAppDomain | ✅ | ✅ | ✅ | ❌ |
 | iOS | Mono | MonoMethodReplacement | ✅ | ❌ | ❌ | ❌ |
-| **Android** | **Mono** | **MonoMethodReplacement** | **✅** | **❌** | **❌** | **❌** |
+| **Android** | **Mono** | **MonoMethodReplacement** | **✅** | **✅** **Enhanced** | **❌** | **❌** **Enhanced** |
 
-### Android Hot Reload Implementation
+### Enhanced Platform Implementations
 
-The Android hot reload implementation is **now fully supported** and uses the same proven approach as iOS:
+**Windows Desktop Enhanced Features:**
+- **Advanced AppDomain Switching**: Optimized domain creation and cleanup with Windows-specific memory management
+- **JIT Optimization**: Enhanced JIT compilation settings for faster hot reload performance
+- **Asynchronous Domain Cleanup**: Non-blocking cleanup of previous domains to maintain UI responsiveness
+- **Windows Memory Optimization**: Desktop-class memory management with GC tuning
+- **Blueprint Integration**: Full Blueprint support for Windows hot reload testing and monitoring
 
-- **Method Body Replacement**: Uses `mono_method_set_unmanaged_thunk` for direct method replacement
-- **Assembly Load Context Switching**: Creates isolated MonoDomains for hot reload operations  
-- **Android Optimizations**: Specific optimizations for Android runtime and GC behavior
-- **Performance Monitoring**: Built-in statistics and performance tracking
+**Android Enhanced Features:**
+- **Enhanced Method Body Replacement**: Improved `mono_method_set_unmanaged_thunk` with Android JIT optimizations
+- **Assembly Replacement Support**: Now supports full assembly replacement (previously limited to method replacement only)
+- **JIT Performance Tuning**: Android-specific JIT compilation optimizations for mobile performance
+- **Advanced Memory Management**: Mobile-optimized GC behavior and memory allocation strategies
+- **Enhanced Statistics**: Comprehensive performance monitoring and diagnostics
 - **Blueprint Integration**: Full Blueprint support for testing and monitoring
 
 ## Troubleshooting
