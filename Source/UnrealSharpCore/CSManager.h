@@ -160,10 +160,16 @@ private:
 
 	// Handles to all active UObjects that has a C# counterpart. The key is the unique ID of the UObject.
 	TMap<uint32, TSharedPtr<FGCHandle>> ManagedObjectHandles;
+	
+	// Thread-safety protection for ManagedObjectHandles
+	mutable FRWLock ManagedObjectHandlesLock;
 
 	// Handles all active UObjects that have interface wrappers in C#. The primary key is the unique ID of the UObject.
 	// The second key is the unique ID of the interface class.
 	TMap<uint32, TMap<uint32, TSharedPtr<FGCHandle>>> ManagedInterfaceWrappers;
+	
+	// Thread-safety protection for ManagedInterfaceWrappers  
+	mutable FRWLock ManagedInterfaceWrappersLock;
 	
 	// Map to cache assemblies that native classes are associated with, for quick lookup.
 	UPROPERTY()

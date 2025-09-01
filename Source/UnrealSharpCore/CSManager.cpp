@@ -313,9 +313,14 @@ void UCSManager::NotifyUObjectDeleted(const UObjectBase* Object, int32 Index)
 	TRACE_CPUPROFILER_EVENT_SCOPE(UCSManager::NotifyUObjectDeleted);
 
 	TSharedPtr<FGCHandle> Handle;
-	if (!ManagedObjectHandles.RemoveAndCopyValueByHash(Index, Index, Handle))
+	
+	// Use write lock to safely remove from ManagedObjectHandles
 	{
-		return;
+		FWriteScopeLock WriteLock(ManagedObjectHandlesLock);
+		if (!ManagedObjectHandles.RemoveAndCopyValueByHash(Index, Index, Handle))
+		{
+			return;
+		}
 	}
 
 	UCSAssembly* Assembly = FindOwningAssembly(Object->GetClass());
@@ -330,19 +335,23 @@ void UCSManager::NotifyUObjectDeleted(const UObjectBase* Object, int32 Index)
 	TSharedPtr<const FGCHandle> AssemblyHandle = Assembly->GetManagedAssemblyHandle();
 	Handle->Dispose(AssemblyHandle->GetHandle());
 
-    TMap<uint32, TSharedPtr<FGCHandle>>* FoundHandles = ManagedInterfaceWrappers.FindByHash(Index, Index);
-	if (FoundHandles == nullptr)
+    // Use write lock to safely access and modify ManagedInterfaceWrappers
 	{
-		return;
-	}
+		FWriteScopeLock WriteLock(ManagedInterfaceWrappersLock);
+		TMap<uint32, TSharedPtr<FGCHandle>>* FoundHandles = ManagedInterfaceWrappers.FindByHash(Index, Index);
+		if (FoundHandles == nullptr)
+		{
+			return;
+		}
 
-	for (auto &[Key, Value] : *FoundHandles)
-	{
-		Value->Dispose(AssemblyHandle->GetHandle());
+		for (auto &[Key, Value] : *FoundHandles)
+		{
+			Value->Dispose(AssemblyHandle->GetHandle());
+		}
+		
+		FoundHandles->Empty();
+		ManagedInterfaceWrappers.Remove(Index);
 	}
-	
-	FoundHandles->Empty();
-	ManagedInterfaceWrappers.Remove(Index);
 }
 
 void UCSManager::OnModulesChanged(FName InModuleName, EModuleChangeReason InModuleChangeReason)
@@ -571,19 +580,24 @@ FGCHandle UCSManager::FindManagedObject(const UObject* Object)
 	}
 
 	uint32 ObjectID = Object->GetUniqueID();
-	if (TSharedPtr<FGCHandle>* FoundHandle = ManagedObjectHandles.FindByHash(ObjectID, ObjectID))
+	
+	// Use read lock to safely access ManagedObjectHandles
 	{
-#if WITH_EDITOR
-		// During full hot reload only the managed objects are GCd as we reload the assemblies.
-		// So the C# counterpart can be invalid even if the handle can be found, so we need to create a new one.
-		TSharedPtr<FGCHandle> HandlePtr = *FoundHandle;
-		if (HandlePtr.IsValid() && !HandlePtr->IsNull())
+		FReadScopeLock ReadLock(ManagedObjectHandlesLock);
+		if (TSharedPtr<FGCHandle>* FoundHandle = ManagedObjectHandles.FindByHash(ObjectID, ObjectID))
 		{
-			return *HandlePtr;
-		}
+#if WITH_EDITOR
+			// During full hot reload only the managed objects are GCd as we reload the assemblies.
+			// So the C# counterpart can be invalid even if the handle can be found, so we need to create a new one.
+			TSharedPtr<FGCHandle> HandlePtr = *FoundHandle;
+			if (HandlePtr.IsValid() && !HandlePtr->IsNull())
+			{
+				return *HandlePtr;
+			}
 #else
-		return **FoundHandle;
+			return **FoundHandle;
 #endif
+		}
 	}
 
 	// No existing handle found, we need to create a new managed object.

@@ -302,7 +302,12 @@ TSharedPtr<FGCHandle> UCSAssembly::CreateManagedObject(const UObject* Object)
 	AllocatedManagedHandles.Add(Handle);
 
 	uint32 ObjectID = Object->GetUniqueID();
-	UCSManager::Get().ManagedObjectHandles.AddByHash(ObjectID, ObjectID, Handle);
+	
+	// Use write lock to safely add to ManagedObjectHandles
+	{
+		FWriteScopeLock WriteLock(UCSManager::Get().ManagedObjectHandlesLock);
+		UCSManager::Get().ManagedObjectHandles.AddByHash(ObjectID, ObjectID, Handle);
+	}
 
 	return Handle;
 }
@@ -316,18 +321,33 @@ TSharedPtr<FGCHandle> UCSAssembly::FindOrCreateManagedInterfaceWrapper(UObject* 
 	TSharedPtr<FGCHandle> TypeHandle = ClassInfo->GetManagedTypeHandle();
 	
 	uint32 ObjectID = Object->GetUniqueID();
-    TMap<uint32, TSharedPtr<FGCHandle>>& TypeMap = UCSManager::Get().ManagedInterfaceWrappers.FindOrAddByHash(ObjectID, ObjectID);
-	
 	uint32 TypeId = InterfaceClass->GetUniqueID();
-	if (TSharedPtr<FGCHandle>* Existing = TypeMap.FindByHash(TypeId, TypeId))
+	
+	// Use locks to safely access both ManagedInterfaceWrappers and ManagedObjectHandles
+	TSharedPtr<FGCHandle>* ObjectHandle = nullptr;
+	TSharedPtr<FGCHandle>* ExistingWrapper = nullptr;
+	
+	// First, check for existing wrapper and get object handle (read locks)
 	{
-		return *Existing;
+		FReadScopeLock InterfaceReadLock(UCSManager::Get().ManagedInterfaceWrappersLock);
+		if (TMap<uint32, TSharedPtr<FGCHandle>>* TypeMap = UCSManager::Get().ManagedInterfaceWrappers.FindByHash(ObjectID, ObjectID))
+		{
+			ExistingWrapper = TypeMap->FindByHash(TypeId, TypeId);
+			if (ExistingWrapper)
+			{
+				return *ExistingWrapper;
+			}
+		}
 	}
-
-    TSharedPtr<FGCHandle>* ObjectHandle = UCSManager::Get().ManagedObjectHandles.FindByHash(ObjectID, ObjectID);
-	if (ObjectHandle == nullptr)
+	
+	// Get object handle
 	{
-		return nullptr;
+		FReadScopeLock ObjectReadLock(UCSManager::Get().ManagedObjectHandlesLock);
+		ObjectHandle = UCSManager::Get().ManagedObjectHandles.FindByHash(ObjectID, ObjectID);
+		if (ObjectHandle == nullptr)
+		{
+			return nullptr;
+		}
 	}
     
 	FGCHandle NewManagedObjectWrapper = FCSManagedCallbacks::ManagedCallbacks.CreateNewManagedObjectWrapper((*ObjectHandle)->GetPointer(), TypeHandle->GetPointer());
@@ -343,7 +363,18 @@ TSharedPtr<FGCHandle> UCSAssembly::FindOrCreateManagedInterfaceWrapper(UObject* 
 	TSharedPtr<FGCHandle> Handle = MakeShared<FGCHandle>(NewManagedObjectWrapper);
 	AllocatedManagedHandles.Add(Handle);
 	
-	TypeMap.AddByHash(TypeId, TypeId, Handle);
+	// Use write lock to safely add new wrapper to ManagedInterfaceWrappers
+	{
+		FWriteScopeLock InterfaceWriteLock(UCSManager::Get().ManagedInterfaceWrappersLock);
+		TMap<uint32, TSharedPtr<FGCHandle>>& TypeMap = UCSManager::Get().ManagedInterfaceWrappers.FindOrAddByHash(ObjectID, ObjectID);
+		
+		// Double-check pattern: verify no other thread added the same wrapper
+		if (!TypeMap.FindByHash(TypeId, TypeId))
+		{
+			TypeMap.AddByHash(TypeId, TypeId, Handle);
+		}
+	}
+	
 	return Handle;
 }
 
